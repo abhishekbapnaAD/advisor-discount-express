@@ -23,6 +23,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 axios.defaults.withCredentials = true;
 
 function App() {
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -277,8 +278,19 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <Container maxWidth="xs" sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
+<Box
+  sx={{
+    minHeight: '100vh',
+    backgroundColor: 'rgba(3,16,84,1)',
+    py: 8,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  }}
+>
+  <Container maxWidth="sm">
+    <Paper elevation={3} sx={{ p: 4 }}>
+
           <Typography variant="h5" align="center" gutterBottom>
             Enter Access Password
           </Typography>
@@ -309,14 +321,25 @@ function App() {
           </Button>
         </Paper>
       </Container>
+      </Box>
     );
   }
 
   return (
     <>
       <CssBaseline />
-      <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
+<Box
+  sx={{
+    minHeight: '100vh',
+    backgroundColor: 'rgba(3,16,84,1)',
+    py: 8,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  }}
+>
+  <Container maxWidth="sm">
+    <Paper elevation={3} sx={{ p: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>
             AppDirect Advisor Discount Express
           </Typography>
@@ -472,6 +495,7 @@ function App() {
           </Snackbar>
         </Paper>
       </Container>
+      </Box>
     </>
   );
 }
