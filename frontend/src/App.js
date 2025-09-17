@@ -17,96 +17,19 @@ import {
   InputAdornment,
 } from '@mui/material';
 
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CssBaseline from '@mui/material/CssBaseline';
 
-// 🔐 Authentication-enabled App wrapper
+axios.defaults.withCredentials = true;
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
-  useEffect(() => {
-    axios
-      .get('/api/check-auth')
-      .then((res) => {
-        if (res.data.authenticated) {
-          setIsAuthenticated(true);
-        }
-      })
-      .catch(() => {
-        setIsAuthenticated(false);
-      });
-  }, []);
-
-  const handleLogin = async () => {
-    try {
-      const res = await axios.post('/api/login', { password });
-      if (res.data.success) {
-        setIsAuthenticated(true);
-        setPassword('');
-        setAuthError('');
-      } else {
-        setAuthError('Invalid password');
-        setSnackbarOpen(true);
-      }
-    } catch (error) {
-      setAuthError('Login failed');
-      setSnackbarOpen(true);
-    }
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbarOpen(false);
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <Container maxWidth="xs" sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h5" align="center" gutterBottom>
-            Enter Access Password
-          </Typography>
-          <TextField
-            type="password"
-            label="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            margin="normal"
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleLogin}
-            fullWidth
-            sx={{ mt: 2 }}
-          >
-            Enter
-          </Button>
-        </Paper>
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={handleSnackbarClose}
-        >
-          <Alert severity="error" onClose={handleSnackbarClose}>
-            {authError}
-          </Alert>
-        </Snackbar>
-      </Container>
-    );
-  }
-
-  // ✅ Show full app only after authentication
-  return <MainAppContent />;
-}
-
-// 🎯 Your original app logic
-function MainAppContent() {
   const [products, setProducts] = useState([]);
   const [editions, setEditions] = useState([]);
   const [contractTerms, setContractTerms] = useState([]);
@@ -118,14 +41,18 @@ function MainAppContent() {
   const [maxDiscountAllowed, setMaxDiscountAllowed] = useState('');
   const [discountError, setDiscountError] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [lastCreatedDiscountCode, setLastCreatedDiscountCode] = useState('');
-  const [overrideCSP, setOverrideCSP] = useState(false);
 
   useEffect(() => {
-    document.title = 'AppDirect Discount Express';
+    axios
+      .get('/api/check-auth')
+      .then((res) => setIsAuthenticated(res.data.authenticated))
+      .catch(() => setIsAuthenticated(false));
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
     setLoadingProducts(true);
     axios
       .get('/products')
@@ -137,19 +64,16 @@ function MainAppContent() {
           }))
         );
       })
-      .catch((error) => {
-        console.error('Error fetching products:', error);
+      .catch(() => {
         setSnackbarMessage('Error fetching products.');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
       })
-      .finally(() => {
-        setLoadingProducts(false);
-      });
-  }, []);
+      .finally(() => setLoadingProducts(false));
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (selectedProduct) {
+    if (!isAuthenticated || !selectedProduct) {
       setEditions([]);
       setSelectedEdition(null);
       setDiscountPercentage('');
@@ -158,41 +82,44 @@ function MainAppContent() {
       setDiscountName('');
       setContractTerms([]);
       setSelectedContractTerm(null);
-
-      axios
-        .get(`/editions/${selectedProduct.value.id}`)
-        .then((response) => {
-          setEditions(
-            response.data.map((edition) => ({
-              value: edition,
-              label: edition.name,
-            }))
-          );
-        })
-        .catch((error) => {
-          console.error('Error fetching editions:', error);
-          setSnackbarMessage('Error fetching editions.');
-          setSnackbarSeverity('error');
-          setSnackbarOpen(true);
-        });
-
-      axios
-        .get(`/max-discount/${selectedProduct.value.uuid}`)
-        .then((response) => {
-          const maxDiscountPercentage = response.data;
-          const maxDiscountPercentageRounded =
-            Math.round(maxDiscountPercentage * 100) / 100;
-          setMaxDiscountAllowed(maxDiscountPercentageRounded);
-        })
-        .catch((error) => {
-          console.error('Error fetching max discount:', error);
-          setMaxDiscountAllowed('');
-          setSnackbarMessage('Error fetching max discount.');
-          setSnackbarSeverity('error');
-          setSnackbarOpen(true);
-        });
+      return;
     }
-  }, [selectedProduct]);
+
+    setEditions([]);
+    setSelectedEdition(null);
+    setDiscountPercentage('');
+    setMaxDiscountAllowed('');
+    setDiscountError('');
+    setDiscountName('');
+    setContractTerms([]);
+    setSelectedContractTerm(null);
+
+    axios
+      .get(`/editions/${selectedProduct.value.id}`)
+      .then((res) => {
+        setEditions(res.data.map((edition) => ({
+          value: edition,
+          label: edition.name,
+        })));
+      })
+      .catch(() => {
+        setSnackbarMessage('Error fetching editions.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      });
+
+    axios
+      .get(`/max-discount/${selectedProduct.value.uuid}`)
+      .then((res) => {
+        const rounded = Math.round(res.data * 100) / 100;
+        setMaxDiscountAllowed(rounded);
+      })
+      .catch(() => {
+        setSnackbarMessage('Error fetching max discount.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      });
+  }, [selectedProduct, isAuthenticated]);
 
   useEffect(() => {
     if (
@@ -205,21 +132,17 @@ function MainAppContent() {
 
       axios
         .get(`/plans/${selectedProduct.value.id}/${selectedEdition.value.id}`)
-        .then((response) => {
-          const terms = response.data.map((plan) => ({
+        .then((res) => {
+          setContractTerms(res.data.map((plan) => ({
             value: plan,
             label: plan.label,
-          }));
-          setContractTerms(terms);
+          })));
         })
-        .catch((error) => {
-          console.error('Error fetching contract terms:', error);
-          setContractTerms([]);
-        });
+        .catch(() => setContractTerms([]));
     } else {
       setContractTerms([]);
     }
-  }, [selectedProduct, selectedEdition, editions]);
+  }, [selectedProduct, selectedEdition, editions, isAuthenticated]);
 
   useEffect(() => {
     if (
@@ -229,16 +152,35 @@ function MainAppContent() {
       discountPercentage &&
       !isNaN(discountPercentage)
     ) {
-      const productName = selectedProduct.value.name;
-      const editionName = selectedEdition.value.name;
       const now = new Date().toISOString();
-      const autoName = `${productName} - ${editionName} - ${selectedContractTerm.label} - ${discountPercentage} - ${now}`;
-      const finalAutoName = 'AD-' + MD5(autoName).toString().substring(0, 16);
+      const autoName = `${selectedProduct.value.name} - ${selectedEdition.value.name} - ${selectedContractTerm.label} - ${discountPercentage} - ${now}`;
+      const finalAutoName = 'TN-' + MD5(autoName).toString().substring(0, 16);
       setDiscountName(finalAutoName);
     } else {
       setDiscountName('');
     }
   }, [selectedProduct, selectedEdition, discountPercentage, selectedContractTerm]);
+
+  const handleLogin = async () => {
+    try {
+      const res = await axios.post('/api/login', { password });
+      if (res.data.success) {
+        setIsAuthenticated(true);
+        setPassword('');
+        setAuthError('');
+      } else {
+        setAuthError('Invalid password');
+        setSnackbarMessage('Invalid password');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    } catch {
+      setAuthError('Login failed');
+      setSnackbarMessage('Login failed');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
 
   const handleSubmit = () => {
     axios
@@ -283,27 +225,49 @@ function MainAppContent() {
         setSnackbarSeverity('info');
         setSnackbarOpen(true);
       })
-      .catch((err) => {
-        console.error('Failed to copy: ', err);
+      .catch(() => {
         setSnackbarMessage('Failed to copy discount code.');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
       });
   };
 
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbarOpen(false);
+  const handleDiscountChange = (value) => {
+    let val = value;
+    const max = parseFloat(maxDiscountAllowed);
+
+    if (isNaN(max)) {
+      if (Number(val) > 100) val = '100';
+      if (Number(val) < 0) val = '0';
+      setDiscountPercentage(val);
+      setDiscountError('');
+      return;
+    }
+
+    if (Number(val) > max) {
+      setDiscountError(`Discount cannot exceed ${max}%`);
+    } else if (Number(val) < 0) {
+      val = '0';
+      setDiscountError('');
+    } else {
+      setDiscountError('');
+    }
+
+    setDiscountPercentage(val);
   };
 
   const computeGrossCommission = () => {
     const max = parseFloat(maxDiscountAllowed);
     const discount = parseFloat(discountPercentage);
     if (!isNaN(max) && !isNaN(discount)) {
-      const result = max - discount;
-      return Math.round(result * 100) / 100;
+      return Math.round((max - discount) * 100) / 100;
     }
     return '';
+  };
+
+  const handleSnackbarClose = (_, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbarOpen(false);
   };
 
   const customSelectStyles = {
@@ -311,68 +275,199 @@ function MainAppContent() {
     container: (provided) => ({ ...provided, marginBottom: '16px' }),
   };
 
+  if (!isAuthenticated) {
+    return (
+      <Container maxWidth="xs" sx={{ mt: 8 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h5" align="center" gutterBottom>
+            Enter Access Password
+          </Typography>
+
+          {authError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {authError}
+            </Alert>
+          )}
+
+          <TextField
+            type="password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            fullWidth
+            margin="normal"
+          />
+
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleLogin}
+            fullWidth
+            sx={{ mt: 2 }}
+          >
+            Enter
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
     <>
       <CssBaseline />
       <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            AppDirect Discount Express
+          <Typography variant="h4" align="center" gutterBottom>
+            AppDirect Advisor Discount Express
           </Typography>
 
-          {loadingProducts && (
+          {lastCreatedDiscountCode && (
+            <Box
+              sx={{
+                mb: 3,
+                p: 2,
+                border: '1px dashed',
+                borderColor: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#f0f7ff',
+              }}
+            >
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                Discount Code: {lastCreatedDiscountCode}
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ContentCopyIcon />}
+                onClick={handleCopyToClipboard}
+              >
+                Copy
+              </Button>
+            </Box>
+          )}
+
+          {loadingProducts ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 3 }}>
               <CircularProgress />
               <Typography variant="body1" sx={{ mt: 2, color: 'primary.main' }}>
                 Loading Products...
               </Typography>
             </Box>
-          )}
+          ) : (
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                Product
+              </Typography>
+              <Select
+                options={products}
+                onChange={setSelectedProduct}
+                placeholder="Select Product"
+                isDisabled={loadingProducts}
+                value={selectedProduct}
+                styles={customSelectStyles}
+              />
 
-          {!loadingProducts && (
-            <Box sx={{ mt: 3 }}>
-              {/* All your Selects, Fields, and Buttons go here (already included above) */}
-              {/* ... */}
-              {/* Including "Override CSP", Gross Commission, etc. */}
-              {/* Snackbar and Copy button are below */}
+              <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                Edition
+              </Typography>
+              <Select
+                options={editions}
+                onChange={setSelectedEdition}
+                placeholder="Select Edition"
+                isDisabled={!selectedProduct}
+                value={selectedEdition}
+                styles={customSelectStyles}
+              />
+
+              <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                Contract Term
+              </Typography>
+              <Select
+                options={contractTerms}
+                onChange={setSelectedContractTerm}
+                placeholder="Select Contract Term"
+                isDisabled={!selectedEdition}
+                value={selectedContractTerm}
+                styles={customSelectStyles}
+              />
+
+              <Box sx={{ mt: 3, mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  Maximum Allowed Discount (%):{' '}
+                  <Typography component="span" variant="body1" sx={{ fontWeight: 'normal' }}>
+                    {maxDiscountAllowed !== '' && !isNaN(maxDiscountAllowed)
+                      ? `${maxDiscountAllowed}%`
+                      : 'N/A'}
+                  </Typography>
+                </Typography>
+              </Box>
+
+              <TextField
+                label="Discount to Apply (%)"
+                type="number"
+                value={discountPercentage}
+                onChange={(e) => handleDiscountChange(e.target.value)}
+                fullWidth
+                margin="normal"
+                error={!!discountError}
+                helperText={discountError}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                  inputProps: {
+                    min: 0,
+                    max: maxDiscountAllowed || 100,
+                    step: 0.01,
+                  },
+                }}
+              />
+
+              <Box sx={{ mt: 2, mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  Gross Commission after Discount (%):{' '}
+                  <Typography component="span" variant="body1" sx={{ fontWeight: 'normal' }}>
+                    {computeGrossCommission() !== '' ? `${computeGrossCommission()}%` : 'N/A'}
+                  </Typography>
+                </Typography>
+              </Box>
+
+              <TextField
+                label="Discount Code Name"
+                value={discountName}
+                disabled
+                fullWidth
+                margin="normal"
+              />
+
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                disabled={
+                  !selectedProduct ||
+                  !selectedEdition ||
+                  !selectedContractTerm ||
+                  !discountName ||
+                  !discountPercentage ||
+                  !!discountError
+                }
+                onClick={handleSubmit}
+                sx={{ mt: 3 }}
+              >
+                Create Discount
+              </Button>
             </Box>
           )}
 
           <Snackbar
             open={snackbarOpen}
-            autoHideDuration={6000}
+            autoHideDuration={4000}
             onClose={handleSnackbarClose}
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           >
-            <Alert
-              onClose={handleSnackbarClose}
-              severity={snackbarSeverity}
-              variant="filled"
-              sx={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-              iconMapping={{
-                success: <CheckCircleOutlineIcon fontSize="inherit" />,
-                error: <ErrorOutlineIcon fontSize="inherit" />,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {snackbarMessage}
-                {snackbarSeverity === 'success' && lastCreatedDiscountCode && (
-                  <Button
-                    onClick={handleCopyToClipboard}
-                    variant="text"
-                    color="inherit"
-                    size="small"
-                    startIcon={<ContentCopyIcon fontSize="small" />}
-                  >
-                    Copy
-                  </Button>
-                )}
-              </Box>
+            <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+              {snackbarMessage}
             </Alert>
           </Snackbar>
         </Paper>

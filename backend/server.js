@@ -1,5 +1,5 @@
-const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
@@ -8,10 +8,36 @@ const qs = require('querystring');
 const app = express();
 const port = process.env.PORT || 8080;
 
+app.use(express.json());
+
 // This will load environment variables from your local .env file.
 // When deployed to App Engine, this line will execute but won't find a .env file,
 // so it won't load anything. That's why env_variables in app.yaml are crucial for GCP.
 dotenv.config();
+
+// 1. IMPORT GOOGLE CLOUD SECRET MANAGER CLIENT
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const secretManagerClient = new SecretManagerServiceClient();
+
+// 2. DEFINE THE ASYNC SECRET FETCHING FUNCTION
+// This function will fetch a secret from GCP Secret Manager
+async function getSecret(secretName) {
+  const projectId = process.env.GCP_PROJECT_NAME; // App Engine sets this automatically
+  if (!projectId) {
+    console.error('ERROR: GCP_PROJECT_NAME environment variable is not set. Cannot fetch secrets.');
+    throw new Error('GCP_PROJECT_NAME not set. Is this running on GCP?');
+  }
+
+  const name = `projects/${projectId}/secrets/${secretName}/versions/latest`;
+  try {
+    const [version] = await secretManagerClient.accessSecretVersion({ name });
+    console.log(`Secret '${secretName}' accessed successfully.`);
+    return version.payload.data.toString('utf8');
+  } catch (error) {
+    console.error(`ERROR: Failed to access secret '${secretName}':`, error.message);
+    throw error; // Re-throw to propagate the error and prevent server startup
+  }
+}
 
 app.use(cookieParser());
 
@@ -40,29 +66,9 @@ app.get('/api/check-auth', (req, res) => {
 });
 
 
-// 1. IMPORT GOOGLE CLOUD SECRET MANAGER CLIENT
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-const secretManagerClient = new SecretManagerServiceClient();
 
-// 2. DEFINE THE ASYNC SECRET FETCHING FUNCTION
-// This function will fetch a secret from GCP Secret Manager
-async function getSecret(secretName) {
-  const projectId = process.env.GCP_PROJECT_NAME; // App Engine sets this automatically
-  if (!projectId) {
-    console.error('ERROR: GCP_PROJECT_NAME environment variable is not set. Cannot fetch secrets.');
-    throw new Error('GCP_PROJECT_NAME not set. Is this running on GCP?');
-  }
 
-  const name = `projects/${projectId}/secrets/${secretName}/versions/latest`;
-  try {
-    const [version] = await secretManagerClient.accessSecretVersion({ name });
-    console.log(`Secret '${secretName}' accessed successfully.`);
-    return version.payload.data.toString('utf8');
-  } catch (error) {
-    console.error(`ERROR: Failed to access secret '${secretName}':`, error.message);
-    throw error; // Re-throw to propagate the error and prevent server startup
-  }
-}
+
 
 // 3. IMMEDIATELY INVOKED ASYNC FUNCTION EXPRESSION (IIAFE)
 // This pattern ensures that asynchronous operations (like fetching secrets)
@@ -89,7 +95,7 @@ async function getSecret(secretName) {
     // --- YOUR EXPRESS APP SETUP (MIDDLEWARE AND ROUTES) ---
 
     // Middleware to parse JSON request bodies (should be near the top)
-    app.use(express.json());
+  //  app.use(express.json());
     // Caching headers middleware
 app.use((req, res, next) => {
   if (req.url === '/' || req.url === '/index.html') {

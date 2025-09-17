@@ -1,0 +1,39 @@
+service: advisor-discount-express
+runtime: nodejs20
+instance_class: F1
+env: standard
+
+env_variables:
+
+  # MP_URL: https://catalogsandbox.byappdirect.com
+  # PARTNER: APPSMARTSANDBOX
+  # GCP_PROJECT_NAME: appsmart-development
+  # GCP_SECRET_NAME: SBX_AD_MP_RW_API_CREDS_NS_INTEGRATION
+  # SHARED_PASSWORD: AKi5g$MdB233c&4afden9%1@3
+
+
+  MP_URL: https://catalog.appdirect.com
+  PARTNER: APPSMART
+  GCP_PROJECT_NAME: appsmart-development
+  GCP_SECRET_NAME: PROD_AD_MP_RW_API_CREDS_NS_INTEGRATION  
+  SHARED_PASSWORD: AKi5g$MdB233c&4afden9%1@3
+
+handlers:
+  # This single handler will send ALL requests to your Node.js backend.
+  # Your Node.js server (server.js) is then responsible for:
+  # 1. Serving your React static files (e.g., from frontend/build)
+  # 2. Handling your API routes (e.g., /api/data, /products, etc.)
+- url: /.*
+  script: backend/server.js # Path to your backend's main entry file, relative to app.yaml
+  secure: always
+  redirect_http_response_code: 301
+
+# Optional: If you want to explicitly exclude certain files from being sent to your app,
+# or ensure they are served as true static files by App Engine, then you can add them
+# *before* the catch-all script handler. However, it's often simpler to let Express handle it.
+# For example, if you had a specific health check file at the root:
+# - url: /_ah/health
+#   static_files: health.html
+#   upload: health.html
+#   secure: always
+#   redirect_http_response_code: 301
