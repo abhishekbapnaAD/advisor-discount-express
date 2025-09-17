@@ -249,8 +249,12 @@ app.get('/products', async (req, res) => {
       nextStart += batchSize * pageSize;
     }
 
-    console.log(`Total products retrieved: ${allProducts.length}`);
-    res.json(allProducts);
+              const filteredProducts = allProducts.filter(
+  (product) => product.developerName === 'Microsoft'
+);
+
+    console.log(`Total products retrieved: ${filteredProducts.length}`);
+    res.json(filteredProducts);
   } catch (error) {
     console.error('Error fetching paginated products:', error.message);
     res.status(500).send('Error fetching products');
